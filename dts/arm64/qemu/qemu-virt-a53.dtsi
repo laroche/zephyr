@@ -41,6 +41,22 @@
 			i-cache-line-size = <64>;
 			d-cache-line-size = <64>;
 		};
+
+		cpu@2 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <2>;
+			i-cache-line-size = <64>;
+			d-cache-line-size = <64>;
+		};
+
+		cpu@3 {
+			device_type = "cpu";
+			compatible = "arm,cortex-a53";
+			reg = <3>;
+			i-cache-line-size = <64>;
+			d-cache-line-size = <64>;
+		};
 	};
 
 	timer {
