@@ -473,7 +473,7 @@ static int phy_mii_initialize_fixed_link(const struct device *dev)
 	 * and set link state to up.
 	 */
 
-	const static int speed_to_phy_link_speed[] = {
+	static const int speed_to_phy_link_speed[] = {
 		LINK_HALF_10BASE,
 		LINK_FULL_10BASE,
 		LINK_HALF_100BASE,

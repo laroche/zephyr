@@ -201,7 +201,6 @@ static void ipv4_addr_add_handler(struct net_mgmt_event_callback *cb,
 				  uint64_t mgmt_event,
 				  struct net_if *iface)
 {
-
 	bool found = false;
 
 	if (mgmt_event != NET_EVENT_IPV4_ADDR_ADD) {
