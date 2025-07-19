@@ -28,7 +28,7 @@ extern void z_arm64_fpu_restore(struct z_arm64_fp_context *saved_fp_context);
 
 #include <string.h>
 
-static void DBG(char *msg, struct k_thread *th)
+static void DBG(const char *msg, struct k_thread *th)
 {
 	char buf[80], *p;
 	unsigned int v;
@@ -56,7 +56,7 @@ static void DBG(char *msg, struct k_thread *th)
 
 #else
 
-static inline void DBG(char *msg, struct k_thread *t) { }
+static inline void DBG(const char *msg, struct k_thread *t) { }
 
 #endif /* FPU_DEBUG */
 
@@ -96,7 +96,7 @@ static void flush_owned_fpu(struct k_thread *thread)
 {
 	__ASSERT(read_daif() & DAIF_IRQ_BIT, "must be called with IRQs disabled");
 
-	int i;
+	unsigned int i;
 
 	/* search all CPUs for the owner we want */
 	unsigned int num_cpus = arch_num_cpus();
