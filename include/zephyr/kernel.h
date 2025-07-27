@@ -34,7 +34,9 @@ extern "C" {
  */
 BUILD_ASSERT(sizeof(int32_t) == sizeof(int));
 BUILD_ASSERT(sizeof(int64_t) == sizeof(long long));
+#ifdef __GCC__
 BUILD_ASSERT(sizeof(intptr_t) == sizeof(long));
+#endif
 
 /**
  * @brief Kernel APIs

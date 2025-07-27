@@ -68,7 +68,7 @@ int z_shell_log_backend_output_func(uint8_t *data, size_t length, void *ctx);
  */
 #ifdef CONFIG_SHELL_LOG_BACKEND
 #define Z_SHELL_LOG_BACKEND_DEFINE(_name, _buf, _size, _queue_size, _timeout) \
-	LOG_BACKEND_DEFINE(_name##_backend, log_backend_shell_api, false); \
+	LOG_BACKEND_DEFINE(_name##_backend, log_backend_shell_api, false /* true */); \
 	LOG_OUTPUT_DEFINE(_name##_log_output, z_shell_log_backend_output_func,\
 			  _buf, _size); \
 	static struct shell_log_backend_control_block _name##_control_block; \
