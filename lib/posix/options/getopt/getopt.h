@@ -18,9 +18,9 @@ struct getopt_state {
 	int optind;	/* index into parent argv vector */
 	int optopt;	/* character checked for validity */
 	int optreset;	/* reset getopt */
-	char *optarg;	/* argument associated with option */
+	const char *optarg;	/* argument associated with option */
 
-	char *place;	/* option letter processing */
+	const char *place;	/* option letter processing */
 
 #if CONFIG_GETOPT_LONG
 	int nonopt_start;
@@ -29,7 +29,7 @@ struct getopt_state {
 };
 
 extern int optreset;	/* reset getopt */
-extern char *optarg;
+extern const char *optarg;
 extern int opterr;
 extern int optind;
 extern int optopt;

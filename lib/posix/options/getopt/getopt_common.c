@@ -20,7 +20,7 @@ int opterr = 1;	/* if error message should be printed */
 int optind = 1;	/* index into parent argv vector */
 int optopt;	/* character checked for validity */
 int optreset;	/* reset getopt */
-char *optarg;	/* argument associated with option */
+const char *optarg;	/* argument associated with option */
 
 /* Common state for all threads that did not have own getopt state. */
 static struct getopt_state m_getopt_common_state = {
