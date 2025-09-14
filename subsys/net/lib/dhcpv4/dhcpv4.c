@@ -1938,6 +1938,8 @@ int net_dhcpv4_remove_option_vendor_callback(struct net_dhcpv4_option_callback *
 
 void net_dhcpv4_start(struct net_if *iface)
 {
+	printk("net_dhcpv4_start()\n");
+	//LOG_INF("net_dhcpv4_start()");
 	dhcpv4_start_internal(iface, true);
 }
 
@@ -2006,6 +2008,8 @@ int net_dhcpv4_init(void)
 	struct sockaddr local_addr;
 	int ret;
 
+	printk("net_dhcpv4_init()\n");
+	//LOG_INF("net_dhcpv4_init()");
 	NET_DBG("");
 
 	net_ipaddr_copy(&net_sin(&local_addr)->sin_addr,
