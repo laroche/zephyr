@@ -1,0 +1,1253 @@
+diff --git a/Kconfig.zephyr b/Kconfig.zephyr
+index 8e3934ac746..e729a799f2e 100644
+--- a/Kconfig.zephyr
++++ b/Kconfig.zephyr
+@@ -525,7 +525,6 @@ endchoice
+ 
+ config LTO
+ 	bool "Link Time Optimization"
+-	depends on !(GEN_ISR_TABLES || GEN_IRQ_VECTOR_TABLE) || ISR_TABLES_LOCAL_DECLARATION
+ 	depends on !NATIVE_LIBRARY
+ 	depends on !CODE_DATA_RELOCATION
+ 	help
+diff --git a/arch/arm/core/cortex_a_r/reset.S b/arch/arm/core/cortex_a_r/reset.S
+index 1a58d76d3c7..332e587f9d5 100644
+--- a/arch/arm/core/cortex_a_r/reset.S
++++ b/arch/arm/core/cortex_a_r/reset.S
+@@ -67,7 +67,7 @@ SECTION_SUBSEC_FUNC(TEXT, _reset_section, __start)
+     ldr r0, =HACTLR_INIT
+     mcr p15, 4, r0, c1, c0, 1
+ 
+-   /* Go to SVC mode */
++    /* Go to SVC mode */
+     mrs r0, cpsr
+     bic r0, #MODE_MASK
+     orr r0, #MODE_SVC
+diff --git a/arch/arm/core/fatal.c b/arch/arm/core/fatal.c
+index 2568e956d21..55302592e6f 100644
+--- a/arch/arm/core/fatal.c
++++ b/arch/arm/core/fatal.c
+@@ -27,7 +27,7 @@ static void esf_dump(const struct arch_esf *esf)
+ 		esf->basic.a4, esf->basic.ip, esf->basic.lr);
+ 	EXCEPTION_DUMP(" xpsr:  0x%08x", esf->basic.xpsr);
+ #if defined(CONFIG_FPU) && defined(CONFIG_FPU_SHARING)
+-	for (int i = 0; i < ARRAY_SIZE(esf->fpu.s); i += 4) {
++	for (int i = 0; i < (int) ARRAY_SIZE(esf->fpu.s); i += 4) {
+ 		EXCEPTION_DUMP("s[%2d]:  0x%08x  s[%2d]:  0x%08x"
+ 			"  s[%2d]:  0x%08x  s[%2d]:  0x%08x",
+ 			i, (uint32_t)esf->fpu.s[i],
+@@ -36,7 +36,7 @@ static void esf_dump(const struct arch_esf *esf)
+ 			i + 3, (uint32_t)esf->fpu.s[i + 3]);
+ 	}
+ #ifdef CONFIG_VFP_FEATURE_REGS_S64_D32
+-	for (int i = 0; i < ARRAY_SIZE(esf->fpu.d); i += 4) {
++	for (int i = 0; i < (int) ARRAY_SIZE(esf->fpu.d); i += 4) {
+ 		EXCEPTION_DUMP("d[%2d]:  0x%16llx  d[%2d]:  0x%16llx"
+ 			"  d[%2d]:  0x%16llx  d[%2d]:  0x%16llx",
+ 			i, (uint64_t)esf->fpu.d[i],
+diff --git a/arch/arm64/core/fpu.c b/arch/arm64/core/fpu.c
+index 5ae9777ec3b..976ecc1cc30 100644
+--- a/arch/arm64/core/fpu.c
++++ b/arch/arm64/core/fpu.c
+@@ -30,7 +30,7 @@ extern void z_arm64_sve_restore(struct z_arm64_fp_context *saved_fp_context);
+ 
+ #include <string.h>
+ 
+-static char *dbg_prefix(char *buf, char *msg, struct k_thread *th)
++static char *dbg_prefix(char *buf, const char *msg, struct k_thread *th)
+ {
+ 	strcpy(buf, "CPU# exc# ");
+ 	buf[3] = '0' + _current_cpu->id;
+@@ -45,7 +45,7 @@ static char *dbg_prefix(char *buf, char *msg, struct k_thread *th)
+ 	return buf + strlen(buf);
+ }
+ 
+-static void DBG(char *msg, struct k_thread *th)
++static void DBG(const char *msg, struct k_thread *th)
+ {
+ 	char buf[80], *p;
+ 	unsigned int v;
+@@ -65,7 +65,7 @@ static void DBG(char *msg, struct k_thread *th)
+ 	k_str_out(buf, p - buf);
+ }
+ 
+-static void DBG_PC(char *msg, uintptr_t pc)
++static void DBG_PC(const char *msg, uintptr_t pc)
+ {
+ 	char buf[80], *p;
+ 	uintptr_t addr = pc;
+@@ -88,8 +88,8 @@ static void DBG_PC(char *msg, uintptr_t pc)
+ 
+ #else
+ 
+-static inline void DBG(char *msg, struct k_thread *t) { }
+-static inline void DBG_PC(char *msg, uintptr_t pc) { }
++static inline void DBG(const char *msg, struct k_thread *t) { }
++static inline void DBG_PC(const char *msg, uintptr_t pc) { }
+ 
+ #endif /* FPU_DEBUG */
+ 
+@@ -180,7 +180,7 @@ static void flush_owned_fpu(struct k_thread *thread)
+ {
+ 	__ASSERT(read_daif() & DAIF_IRQ_BIT, "must be called with IRQs disabled");
+ 
+-	int i;
++	unsigned int i;
+ 
+ 	/* search all CPUs for the owner we want */
+ 	unsigned int num_cpus = arch_num_cpus();
+diff --git a/arch/arm64/core/mmu.c b/arch/arm64/core/mmu.c
+index 2656f4d3be5..5f6ba3f6f9c 100644
+--- a/arch/arm64/core/mmu.c
++++ b/arch/arm64/core/mmu.c
+@@ -815,7 +815,7 @@ static inline void invalidate_tlb_page(uintptr_t virt)
+ /* zephyr execution regions with appropriate attributes */
+ 
+ struct arm_mmu_flat_range {
+-	char *name;
++	const char *name;
+ 	void *start;
+ 	void *end;
+ 	uint32_t attrs;
+@@ -998,11 +998,11 @@ void z_arm64_mm_init(bool is_primary_core)
+ 	__ASSERT(GET_EL(read_currentel()) == MODE_EL1,
+ 		 "Exception level not EL1, MMU not enabled!\n");
+ 
+-	/* Ensure that MMU is already not enabled */
++	/* Ensure that MMU is not already enabled */
+ 	__ASSERT((read_sctlr_el1() & SCTLR_M_BIT) == 0, "MMU is already enabled\n");
+ 
+ 	/*
+-	 * Only booting core setup up the page tables.
++	 * Only booting core setting up the page tables.
+ 	 */
+ 	if (is_primary_core) {
+ 		kernel_ptables.base_xlat_table = new_table();
+@@ -1148,7 +1148,7 @@ size_t arch_virt_region_align(uintptr_t phys, size_t size)
+ {
+ 	size_t alignment = CONFIG_MMU_PAGE_SIZE;
+ 	size_t level_size;
+-	int level;
++	unsigned int level;
+ 
+ 	for (level = XLAT_LAST_LEVEL; level >= BASE_XLAT_LEVEL; level--) {
+ 		level_size = 1 << LEVEL_TO_VA_SIZE_SHIFT(level);
+diff --git a/arch/arm64/core/smp.c b/arch/arm64/core/smp.c
+index 2ff0655092d..1902acdc253 100644
+--- a/arch/arm64/core/smp.c
++++ b/arch/arm64/core/smp.c
+@@ -137,9 +137,9 @@ void arch_cpu_start(int cpu_num, k_thread_stack_t *stack, int sz,
+ }
+ 
+ /* the C entry of secondary cores */
+-void arch_secondary_cpu_init(int cpu_num)
++void arch_secondary_cpu_init(void)
+ {
+-	cpu_num = arm64_cpu_boot_params.cpu_num;
++	int cpu_num = arm64_cpu_boot_params.cpu_num;
+ 	arch_cpustart_t fn;
+ 	void *arg;
+ 
+@@ -195,7 +195,7 @@ static void send_ipi(unsigned int ipi, uint32_t cpu_bitmap)
+ 	 */
+ 	unsigned int num_cpus = arch_num_cpus();
+ 
+-	for (int i = 0; i < num_cpus; i++) {
++	for (unsigned int i = 0; i < num_cpus; i++) {
+ 		if ((cpu_bitmap & BIT(i)) == 0) {
+ 			continue;
+ 		}
+diff --git a/boards/arm/mps2/mps2_an385_defconfig b/boards/arm/mps2/mps2_an385_defconfig
+index 1d55b8fe949..b4bf5fc20e7 100644
+--- a/boards/arm/mps2/mps2_an385_defconfig
++++ b/boards/arm/mps2/mps2_an385_defconfig
+@@ -16,3 +16,9 @@ CONFIG_UART_CONSOLE=y
+ CONFIG_SERIAL=y
+ 
+ CONFIG_ARM_MPU=y
++#CONFIG_ARM_MPU=n
++#CONFIG_FPU=n
++
++CONFIG_COMPILER_ISA_THUMB2=n
++
++#CONFIG_LTO=y
+diff --git a/boards/qemu/cortex_a53/qemu_cortex_a53_defconfig b/boards/qemu/cortex_a53/qemu_cortex_a53_defconfig
+index 26b07e5862c..a26f09bbea2 100644
+--- a/boards/qemu/cortex_a53/qemu_cortex_a53_defconfig
++++ b/boards/qemu/cortex_a53/qemu_cortex_a53_defconfig
+@@ -15,3 +15,5 @@ CONFIG_UART_INTERRUPT_DRIVEN=y
+ 
+ # Avoid timing skew in tests
+ CONFIG_QEMU_ICOUNT=y
++
++#CONFIG_LTO=y
+diff --git a/boards/qemu/cortex_a53/qemu_cortex_a53_qemu_cortex_a53_smp_defconfig b/boards/qemu/cortex_a53/qemu_cortex_a53_qemu_cortex_a53_smp_defconfig
+index 63099649065..ec952ad5936 100644
+--- a/boards/qemu/cortex_a53/qemu_cortex_a53_qemu_cortex_a53_smp_defconfig
++++ b/boards/qemu/cortex_a53/qemu_cortex_a53_qemu_cortex_a53_smp_defconfig
+@@ -25,5 +25,13 @@ CONFIG_PM_CPU_OPS=y
+ 
+ # SMP-related
+ CONFIG_SMP=y
+-CONFIG_MP_MAX_NUM_CPUS=2
++CONFIG_MP_MAX_NUM_CPUS=4
+ CONFIG_TIMEOUT_64BIT=y
++
++#CONFIG_INIT_STACKS=y
++#CONFIG_STACK_USAGE=y
++#CONFIG_STACK_SENTINEL=y
++#CONFIG_STACK_CANARIES=y
++#CONFIG_EXTRA_EXCEPTION_INFO=y
++
++#CONFIG_LTO=y
+diff --git a/boards/qemu/cortex_a9/qemu_cortex_a9.yaml b/boards/qemu/cortex_a9/qemu_cortex_a9.yaml
+index b1ed651c830..708c68c3fbf 100644
+--- a/boards/qemu/cortex_a9/qemu_cortex_a9.yaml
++++ b/boards/qemu/cortex_a9/qemu_cortex_a9.yaml
+@@ -16,7 +16,7 @@ toolchain:
+   - gnuarmemb
+ supported:
+   - net
+-  - netif:eth
++  - netif:zeth
+ ram: 524288
+ flash: 262144
+ testing:
+diff --git a/boards/qemu/cortex_a9/qemu_cortex_a9_defconfig b/boards/qemu/cortex_a9/qemu_cortex_a9_defconfig
+index 16149af1d7c..af39518972b 100644
+--- a/boards/qemu/cortex_a9/qemu_cortex_a9_defconfig
++++ b/boards/qemu/cortex_a9/qemu_cortex_a9_defconfig
+@@ -18,3 +18,6 @@ CONFIG_IDLE_STACK_SIZE=8192
+ CONFIG_ISR_STACK_SIZE=8192
+ CONFIG_MAIN_STACK_SIZE=8192
+ CONFIG_SYSTEM_WORKQUEUE_STACK_SIZE=8192
++
++#CONFIG_LTO=y
++
+diff --git a/boards/qemu/cortex_r5/qemu_cortex_r5_defconfig b/boards/qemu/cortex_r5/qemu_cortex_r5_defconfig
+index 40e22978ec0..6a3fd9eba3d 100644
+--- a/boards/qemu/cortex_r5/qemu_cortex_r5_defconfig
++++ b/boards/qemu/cortex_r5/qemu_cortex_r5_defconfig
+@@ -6,10 +6,32 @@ CONFIG_THREAD_STACK_INFO=y
+ 
+ # enable uart driver
+ CONFIG_SERIAL=y
++#CONFIG_UART_INTERRUPT_DRIVEN=n
+ 
+ # enable console
+ CONFIG_CONSOLE=y
+ CONFIG_UART_CONSOLE=y
+ 
+-CONFIG_SYS_CLOCK_TICKS_PER_SEC=100
++#CONFIG_SYS_CLOCK_TICKS_PER_SEC=100
+ CONFIG_ARM_MPU=y
++#CONFIG_MPU_STACK_GUARD=y
++#CONFIG_USERSPACE=y
++#CONFIG_FPU=y
++#CONFIG_FPU_SHARING=y
++
++CONFIG_COMPILER_ISA_THUMB2=n
++
++#CONFIG_EXTRA_EXCEPTION_INFO=y
++#CONFIG_INIT_STACKS=y
++#CONFIG_STACK_USAGE=y
++#CONFIG_STACK_SENTINEL=y
++
++#CONFIG_BOOT_BANNER=y
++
++#CONFIG_MINIMAL_LIBC=y
++#CONFIG_MINIMAL_LIBC_RAND=y
++#CONFIG_NEWLIB_LIBC=y
++#CONFIG_NEWLIB_LIBC_NANO=y
++#CONFIG_PICOLIBC=y
++
++#CONFIG_LTO=y
+diff --git a/cmake/compiler/gcc/compiler_flags.cmake b/cmake/compiler/gcc/compiler_flags.cmake
+index 31bf8cf8328..bba4a430f03 100644
+--- a/cmake/compiler/gcc/compiler_flags.cmake
++++ b/cmake/compiler/gcc/compiler_flags.cmake
+@@ -38,6 +38,33 @@ check_set_compiler_property(PROPERTY warning_base
+     -Wall
+     "SHELL:-Wformat -Wformat-security"
+     "SHELL:-Wformat -Wno-format-zero-length"
++    -Wextra
++    -Wparentheses
++    -Wsequence-point
++    -Wshadow
++    -Wpointer-arith
++    #-Wswitch-default
++    #-Wcast-qual
++    #-Wcast-align
++    #-Wnested-externs
++    -Wunreachable-code
++    -Wuninitialized
++    #-Wmissing-prototypes
++    #-Wredundant-decls
++    -Wmissing-include-dirs
++    #-Wconversion
++    -Wlogical-not-parentheses
++    -Wwrite-strings
++    -Wold-style-definition
++    #-Waggregate-return
++    -Wlogical-op
++    -Wtrampolines
++    #-fanalyzer
++    #-Wno-discarded-qualifiers
++    -Wno-sign-compare
++    -Wno-type-limits
++    #-Wno-unused-but-set-variable
++    -Wno-unused-parameter
+ )
+ 
+ # C implicit promotion rules will want to make floats into doubles very easily
+@@ -151,7 +178,7 @@ set_property(TARGET compiler-cpp PROPERTY dialect_cpp23 "-std=c++23"
+   "-Wno-register" "-Wno-volatile")
+ 
+ # Flag for disabling strict aliasing rule in C and C++
+-set_compiler_property(PROPERTY no_strict_aliasing -fno-strict-aliasing)
++#set_compiler_property(PROPERTY no_strict_aliasing -fno-strict-aliasing)
+ 
+ # Extra warning options
+ set_property(TARGET compiler PROPERTY warnings_as_errors -Werror)
+diff --git a/cmake/linker_script/common/thread-local-storage.cmake b/cmake/linker_script/common/thread-local-storage.cmake
+index 127b7f93023..68f527b0d7c 100644
+--- a/cmake/linker_script/common/thread-local-storage.cmake
++++ b/cmake/linker_script/common/thread-local-storage.cmake
+@@ -36,9 +36,5 @@ if(CONFIG_THREAD_LOCAL_STORAGE)
+ #	PROVIDE(__tbss_size = SIZEOF(tbss));
+ #	PROVIDE(__tbss_end = __tbss_start + __tbss_size);
+ #	PROVIDE(__tbss_align = ALIGNOF(tbss));
+-#
+-#	PROVIDE(__tls_start = __tdata_start);
+-#	PROVIDE(__tls_end = __tbss_end);
+-#	PROVIDE(__tls_size = __tbss_end - __tdata_start);
+ 
+ endif()
+diff --git a/drivers/console/uart_console.c b/drivers/console/uart_console.c
+index 0221be4a54e..107bf780de5 100644
+--- a/drivers/console/uart_console.c
++++ b/drivers/console/uart_console.c
+@@ -598,6 +598,13 @@ static void uart_console_hook_install(void)
+ #endif
+ }
+ 
++void console_out_string(const char *s)
++{
++	for (; *s; s++) {
++		console_out(*s);
++		//z_impl_zephyr_fputc(*s, NULL);
++	}
++}
+ /**
+  * @brief Initialize one UART as the console/debug port
+  *
+@@ -610,6 +617,7 @@ static int uart_console_init(void)
+ 	}
+ 
+ 	uart_console_hook_install();
++	//console_out_string("Hallo from uart_console_init()\n");
+ 
+ 	return 0;
+ }
+diff --git a/drivers/entropy/entropy_nrf5.c b/drivers/entropy/entropy_nrf5.c
+index 6912c98c367..3232dfd84bc 100644
+--- a/drivers/entropy/entropy_nrf5.c
++++ b/drivers/entropy/entropy_nrf5.c
+@@ -103,9 +103,7 @@ static struct entropy_nrf5_dev_data entropy_nrf5_data;
+ static int random_byte_get(void)
+ {
+ 	int retval = -EAGAIN;
+-	unsigned int key;
+-
+-	key = irq_lock();
++	unsigned int key = irq_lock();
+ 
+ 	if (nrf_rng_event_check(NRF_RNG, NRF_RNG_EVENT_VALRDY)) {
+ 		retval = nrf_rng_random_value_get(NRF_RNG);
+diff --git a/drivers/mm/mm_drv_common.c b/drivers/mm/mm_drv_common.c
+index 769a5bff4f1..a4fd7ee0d18 100644
+--- a/drivers/mm/mm_drv_common.c
++++ b/drivers/mm/mm_drv_common.c
+@@ -569,7 +569,7 @@ __weak FUNC_ALIAS(sys_mm_drv_simple_update_region_flags,
+ 
+ const struct sys_mm_drv_region *sys_mm_drv_simple_query_memory_regions(void)
+ {
+-	const static struct sys_mm_drv_region empty[] = {
++	static const struct sys_mm_drv_region empty[] = {
+ 		{ }
+ 	};
+ 
+diff --git a/drivers/serial/uart_pl011_registers.h b/drivers/serial/uart_pl011_registers.h
+index a46509e18b6..48e9cf74766 100644
+--- a/drivers/serial/uart_pl011_registers.h
++++ b/drivers/serial/uart_pl011_registers.h
+@@ -27,7 +27,7 @@ struct pl011_regs {
+ 	uint32_t ibrd;
+ 	uint32_t fbrd;
+ 	uint32_t lcr_h;
+-	uint32_t cr;
++	volatile uint32_t cr;
+ 	uint32_t ifls;
+ 	uint32_t imsc;
+ 	uint32_t ris;
+@@ -37,9 +37,9 @@ struct pl011_regs {
+ };
+ 
+ static inline
+-volatile struct pl011_regs *get_uart(const struct device *dev)
++struct pl011_regs *get_uart(const struct device *dev)
+ {
+-	return (volatile struct pl011_regs *)DEVICE_MMIO_GET(dev);
++	return (struct pl011_regs *)DEVICE_MMIO_GET(dev);
+ }
+ 
+ #define PL011_BIT_MASK(x, y) (((2 << x) - 1) << y)
+diff --git a/dts/arm64/qemu/qemu-virt-a53.dtsi b/dts/arm64/qemu/qemu-virt-a53.dtsi
+index 3420278e8fb..1b2645e6005 100644
+--- a/dts/arm64/qemu/qemu-virt-a53.dtsi
++++ b/dts/arm64/qemu/qemu-virt-a53.dtsi
+@@ -37,6 +37,18 @@
+ 			compatible = "arm,cortex-a53";
+ 			reg = <1>;
+ 		};
++
++		cpu@2 {
++			device_type = "cpu";
++			compatible = "arm,cortex-a53";
++			reg = <2>;
++		};
++
++		cpu@3 {
++			device_type = "cpu";
++			compatible = "arm,cortex-a53";
++			reg = <3>;
++		};
+ 	};
+ 
+ 	timer {
+diff --git a/include/zephyr/arch/arm/cortex_a_r/lib_helpers.h b/include/zephyr/arch/arm/cortex_a_r/lib_helpers.h
+index 983654ce138..ef29323d213 100644
+--- a/include/zephyr/arch/arm/cortex_a_r/lib_helpers.h
++++ b/include/zephyr/arch/arm/cortex_a_r/lib_helpers.h
+@@ -73,6 +73,7 @@ MAKE_REG_HELPER(vbar,        0, 12, 0, 0);
+ MAKE_REG_HELPER(cntv_ctl,    0, 14,  3, 1);
+ MAKE_REG_HELPER(ctr,         0, 0, 0, 1);
+ MAKE_REG_HELPER(tpidruro,    0, 13, 0, 3);
++MAKE_REG_HELPER(tpidrurw,    0, 13, 0, 2);
+ MAKE_REG64_HELPER(ICC_SGI1R, 0, 12);
+ MAKE_REG64_HELPER(cntvct,    1, 14);
+ MAKE_REG64_HELPER(cntv_cval, 3, 14);
+diff --git a/include/zephyr/arch/arm64/arch_inlines.h b/include/zephyr/arch/arm64/arch_inlines.h
+index 79e4690b2b1..ef80e1b1fd0 100644
+--- a/include/zephyr/arch/arm64/arch_inlines.h
++++ b/include/zephyr/arch/arm64/arch_inlines.h
+@@ -20,7 +20,7 @@ static ALWAYS_INLINE _cpu_t *arch_curr_cpu(void)
+ 	return (_cpu_t *)(read_tpidrro_el0() & TPIDRROEL0_CURR_CPU);
+ }
+ 
+-static ALWAYS_INLINE int arch_exception_depth(void)
++static ALWAYS_INLINE unsigned int arch_exception_depth(void)
+ {
+ 	return (read_tpidrro_el0() & TPIDRROEL0_EXC_DEPTH) / TPIDRROEL0_EXC_UNIT;
+ }
+diff --git a/include/zephyr/arch/x86/memmap.h b/include/zephyr/arch/x86/memmap.h
+index 21c65c43380..6f8d04945a0 100644
+--- a/include/zephyr/arch/x86/memmap.h
++++ b/include/zephyr/arch/x86/memmap.h
+@@ -62,7 +62,7 @@ extern struct x86_memmap_entry x86_memmap[];
+  */
+ 
+ struct x86_memmap_exclusion {
+-	char *name;
++	const char *name;
+ 	void *start;		/* address of first byte of exclusion */
+ 	void *end;		/* one byte past end of exclusion */
+ };
+diff --git a/include/zephyr/kernel.h b/include/zephyr/kernel.h
+index c7e6e035d49..a2f2a65503e 100644
+--- a/include/zephyr/kernel.h
++++ b/include/zephyr/kernel.h
+@@ -34,7 +34,9 @@ extern "C" {
+  */
+ BUILD_ASSERT(sizeof(int32_t) == sizeof(int));
+ BUILD_ASSERT(sizeof(int64_t) == sizeof(long long));
++#ifdef __GCC__
+ BUILD_ASSERT(sizeof(intptr_t) == sizeof(long));
++#endif
+ 
+ /**
+  * @brief Kernel APIs
+diff --git a/include/zephyr/linker/linker-defs.h b/include/zephyr/linker/linker-defs.h
+index 2d4efeebe69..bd65c3c5331 100644
+--- a/include/zephyr/linker/linker-defs.h
++++ b/include/zephyr/linker/linker-defs.h
+@@ -288,9 +288,6 @@ extern char __tbss_start[];
+ extern char __tbss_end[];
+ extern char __tbss_size[];
+ extern char __tbss_align[];
+-extern char __tls_start[];
+-extern char __tls_end[];
+-extern char __tls_size[];
+ #endif /* CONFIG_THREAD_LOCAL_STORAGE */
+ 
+ #ifdef CONFIG_LINKER_USE_BOOT_SECTION
+diff --git a/include/zephyr/linker/thread-local-storage.ld b/include/zephyr/linker/thread-local-storage.ld
+index 1214cc8817e..43e14310e1e 100644
+--- a/include/zephyr/linker/thread-local-storage.ld
++++ b/include/zephyr/linker/thread-local-storage.ld
+@@ -34,8 +34,4 @@
+ 	PROVIDE(__tbss_size = (SIZEOF(tbss) + __tbss_align - 1) & ~(__tbss_align - 1));
+ 	PROVIDE(__tbss_end = __tbss_start + __tbss_size);
+ 
+-	PROVIDE(__tls_start = __tdata_start);
+-	PROVIDE(__tls_end = __tbss_end);
+-	PROVIDE(__tls_size = __tbss_end - __tdata_start);
+-
+ #endif /* CONFIG_THREAD_LOCAL_STORAGE */
+diff --git a/include/zephyr/posix/unistd.h b/include/zephyr/posix/unistd.h
+index d9498ce9a3e..d5bfdf7cab3 100644
+--- a/include/zephyr/posix/unistd.h
++++ b/include/zephyr/posix/unistd.h
+@@ -51,7 +51,7 @@ int gethostname(char *buf, size_t len);
+ 
+ #ifdef CONFIG_POSIX_C_LIB_EXT
+ int getopt(int argc, char *const argv[], const char *optstring);
+-extern char *optarg;
++extern const char *optarg;
+ extern int opterr, optind, optopt;
+ #endif
+ 
+diff --git a/include/zephyr/shell/shell_log_backend.h b/include/zephyr/shell/shell_log_backend.h
+index 327e82d82ce..f0b147db920 100644
+--- a/include/zephyr/shell/shell_log_backend.h
++++ b/include/zephyr/shell/shell_log_backend.h
+@@ -68,7 +68,7 @@ int z_shell_log_backend_output_func(uint8_t *data, size_t length, void *ctx);
+  */
+ #ifdef CONFIG_SHELL_LOG_BACKEND
+ #define Z_SHELL_LOG_BACKEND_DEFINE(_name, _buf, _size, _queue_size, _timeout) \
+-	LOG_BACKEND_DEFINE(_name##_backend, log_backend_shell_api, false); \
++	LOG_BACKEND_DEFINE(_name##_backend, log_backend_shell_api, false /* true */); \
+ 	LOG_OUTPUT_DEFINE(_name##_log_output, z_shell_log_backend_output_func,\
+ 			  _buf, _size); \
+ 	static struct shell_log_backend_control_block _name##_control_block; \
+diff --git a/include/zephyr/sys/sys_getopt.h b/include/zephyr/sys/sys_getopt.h
+index 7ffaf248f23..543b6c8ef91 100644
+--- a/include/zephyr/sys/sys_getopt.h
++++ b/include/zephyr/sys/sys_getopt.h
+@@ -18,9 +18,9 @@ struct sys_getopt_state {
+ 	int optind;   /* index into parent argv vector */
+ 	int optopt;   /* character checked for validity */
+ 	int optreset; /* reset getopt */
+-	char *optarg; /* argument associated with option */
++	const char *optarg; /* argument associated with option */
+ 
+-	char *place; /* option letter processing */
++	const char *place; /* option letter processing */
+ 
+ #if CONFIG_GETOPT_LONG
+ 	int nonopt_start;
+@@ -29,7 +29,7 @@ struct sys_getopt_state {
+ };
+ 
+ extern int sys_getopt_optreset; /* reset getopt */
+-extern char *sys_getopt_optarg;
++extern const char *sys_getopt_optarg;
+ extern int sys_getopt_opterr;
+ extern int sys_getopt_optind;
+ extern int sys_getopt_optopt;
+diff --git a/kernel/include/kswap.h b/kernel/include/kswap.h
+index cff3efab6e9..b7f6c3ad2a1 100644
+--- a/kernel/include/kswap.h
++++ b/kernel/include/kswap.h
+@@ -201,7 +201,6 @@ static inline void z_sched_switch_spin(struct k_thread *thread)
+ 
+ static inline int z_swap_irqlock(unsigned int key)
+ {
+-	int ret;
+ 	z_check_stack_sentinel();
+ 
+ #ifdef CONFIG_SPIN_VALIDATE
+@@ -213,8 +212,7 @@ static inline int z_swap_irqlock(unsigned int key)
+ # endif /* CONFIG_ARM64 */
+ #endif /* CONFIG_SPIN_VALIDATE */
+ 
+-	ret = arch_swap(key);
+-	return ret;
++	return arch_swap(key);
+ }
+ 
+ /* If !USE_SWITCH, then spinlocks are guaranteed degenerate as we
+diff --git a/kernel/init.c b/kernel/init.c
+index 64d8d18d354..2b097c4b005 100644
+--- a/kernel/init.c
++++ b/kernel/init.c
+@@ -372,11 +372,11 @@ static void init_idle_thread(int i)
+ 	char tname[8];
+ 	snprintk(tname, 8, "idle %02d", i);
+ #else
+-	char *tname = "idle";
++	const char *tname = "idle";
+ #endif /* CONFIG_MP_MAX_NUM_CPUS */
+ 
+ #else
+-	char *tname = NULL;
++	const char *tname = NULL;
+ #endif /* CONFIG_THREAD_NAME */
+ 
+ 	z_setup_new_thread(thread, stack,
+diff --git a/kernel/mmu.c b/kernel/mmu.c
+index fa9f6351be0..2cde377bf2c 100644
+--- a/kernel/mmu.c
++++ b/kernel/mmu.c
+@@ -114,7 +114,7 @@ void k_mem_page_frames_dump(void)
+ 	printk("Physical memory from 0x%lx to 0x%lx\n",
+ 	       K_MEM_PHYS_RAM_START, K_MEM_PHYS_RAM_END);
+ 
+-	for (int i = 0; i < K_MEM_NUM_PAGE_FRAMES; i++) {
++	for (unsigned int i = 0; i < K_MEM_NUM_PAGE_FRAMES; i++) {
+ 		struct k_mem_page_frame *pf = &k_mem_page_frames[i];
+ 
+ 		page_frame_dump(pf);
+diff --git a/kernel/smp.c b/kernel/smp.c
+index 63ac7bc8975..a40ba5a88eb 100644
+--- a/kernel/smp.c
++++ b/kernel/smp.c
+@@ -229,7 +229,7 @@ void z_smp_init(void)
+ 	/* Just start CPUs one by one. */
+ 	unsigned int num_cpus = arch_num_cpus();
+ 
+-	for (int i = 1; i < num_cpus; i++) {
++	for (unsigned int i = 1; i < num_cpus; i++) {
+ 		z_init_cpu(i);
+ 		start_cpu(i, NULL);
+ 	}
+diff --git a/kernel/thread.c b/kernel/thread.c
+index 97efd493c9c..59feb2e5646 100644
+--- a/kernel/thread.c
++++ b/kernel/thread.c
+@@ -473,10 +473,9 @@ static char *setup_thread_stack(struct k_thread *new_thread,
+ 	delta += arch_tls_stack_setup(new_thread, stack_ptr);
+ #endif /* CONFIG_THREAD_LOCAL_STORAGE */
+ #ifdef CONFIG_THREAD_USERSPACE_LOCAL_DATA
+-	size_t tls_size = sizeof(struct _thread_userspace_local_data);
+-
+ 	/* reserve space on highest memory of stack buffer for local data */
+-	delta += tls_size;
++	delta += sizeof(struct _thread_userspace_local_data);
++
+ 	new_thread->userspace_local_data =
+ 		(struct _thread_userspace_local_data *)(stack_ptr - delta);
+ #endif /* CONFIG_THREAD_USERSPACE_LOCAL_DATA */
+diff --git a/lib/libc/minimal/source/stdout/stdout_console.c b/lib/libc/minimal/source/stdout/stdout_console.c
+index 9cef4afc873..24803f70944 100644
+--- a/lib/libc/minimal/source/stdout/stdout_console.c
++++ b/lib/libc/minimal/source/stdout/stdout_console.c
+@@ -46,9 +46,7 @@ int fputc(int c, FILE *stream)
+ int fputs(const char *ZRESTRICT s, FILE *ZRESTRICT stream)
+ {
+ 	int len = strlen(s);
+-	int ret;
+-
+-	ret = fwrite(s, 1, len, stream);
++	int ret = fwrite(s, 1, len, stream);
+ 
+ 	return (len == ret) ? 0 : EOF;
+ }
+@@ -100,7 +98,6 @@ static inline size_t z_vrfy_zephyr_fwrite(const void *ZRESTRICT ptr,
+ 					  size_t size, size_t nitems,
+ 					  FILE *ZRESTRICT stream)
+ {
+-
+ 	K_OOPS(K_SYSCALL_MEMORY_ARRAY_READ(ptr, nitems, size));
+ 	return z_impl_zephyr_fwrite(ptr, size, nitems, stream);
+ }
+diff --git a/lib/os/cbprintf_complete.c b/lib/os/cbprintf_complete.c
+index 18552ceb977..07403dbbc77 100644
+--- a/lib/os/cbprintf_complete.c
++++ b/lib/os/cbprintf_complete.c
+@@ -668,7 +668,7 @@ static inline const char *extract_conversion(struct conversion *conv,
+ 	return sp;
+ }
+ 
+-#ifdef CONFIG_64BIT
++#if 1 || defined CONFIG_64BIT
+ 
+ static void _ldiv5(uint64_t *v)
+ {
+@@ -1657,7 +1657,7 @@ int z_cbvprintf_impl(cbprintf_cb __out, void *ctx, const char *fp,
+ 			break;
+ 		case 'c':
+ 			bps = buf;
+-			buf[0] = CHAR_IS_SIGNED ? value->sint : value->uint;
++			buf[0] = CHAR_IS_SIGNED ? value->sint : (char) value->uint;
+ 			bpe = buf + 1;
+ 			break;
+ 		case 'd':
+diff --git a/lib/os/cbprintf_packaged.c b/lib/os/cbprintf_packaged.c
+index d5add5ecf37..24e4a3f72ab 100644
+--- a/lib/os/cbprintf_packaged.c
++++ b/lib/os/cbprintf_packaged.c
+@@ -883,7 +883,7 @@ static bool is_fmt_spec(char c)
+ /* Function checks if nth argument is a pointer (%p). Returns true is yes. Returns
+  * false if not or if string does not have nth argument.
+  */
+-bool is_ptr(const char *fmt, int n)
++static bool is_ptr(const char *fmt, int n)
+ {
+ 	char c;
+ 	bool mod = false;
+diff --git a/lib/os/zvfs/zvfs_fdtable.c b/lib/os/zvfs/zvfs_fdtable.c
+index 12e04c4a004..d5b0156f413 100644
+--- a/lib/os/zvfs/zvfs_fdtable.c
++++ b/lib/os/zvfs/zvfs_fdtable.c
+@@ -152,7 +152,7 @@ static int _find_fd_entry(void)
+ {
+ 	int fd;
+ 
+-	for (fd = 0; fd < ARRAY_SIZE(fdtable); fd++) {
++	for (fd = 0; fd < (int) ARRAY_SIZE(fdtable); fd++) {
+ 		if (!atomic_get(&fdtable[fd].refcount)) {
+ 			return fd;
+ 		}
+@@ -164,7 +164,7 @@ static int _find_fd_entry(void)
+ 
+ static int _check_fd(int fd)
+ {
+-	if ((fd < 0) || (fd >= ARRAY_SIZE(fdtable))) {
++	if ((fd < 0) || (fd >= (int) ARRAY_SIZE(fdtable))) {
+ 		errno = EBADF;
+ 		return -1;
+ 	}
+@@ -201,7 +201,7 @@ static int z_get_fd_by_obj_and_vtable(void *obj, const struct fd_op_vtable *vtab
+ {
+ 	int fd;
+ 
+-	for (fd = 0; fd < ARRAY_SIZE(fdtable); fd++) {
++	for (fd = 0; fd < (int) ARRAY_SIZE(fdtable); fd++) {
+ 		if (fdtable[fd].obj == obj && fdtable[fd].vtable == vtable) {
+ 			return fd;
+ 		}
+diff --git a/lib/posix/c_lib_ext/getopt_shim.c b/lib/posix/c_lib_ext/getopt_shim.c
+index 1187c53440a..03a758f0ab8 100644
+--- a/lib/posix/c_lib_ext/getopt_shim.c
++++ b/lib/posix/c_lib_ext/getopt_shim.c
+@@ -8,7 +8,7 @@
+ 
+ #include "getopt.h"
+ 
+-char *optarg;
++const char *optarg;
+ int opterr, optind, optopt;
+ 
+ void getopt_init(void)
+diff --git a/lib/utils/getopt/getopt_common.c b/lib/utils/getopt/getopt_common.c
+index a5d58e95760..3df1284a9d8 100644
+--- a/lib/utils/getopt/getopt_common.c
++++ b/lib/utils/getopt/getopt_common.c
+@@ -20,7 +20,7 @@ int sys_getopt_opterr = 1; /* if error message should be printed */
+ int sys_getopt_optind = 1; /* index into parent argv vector */
+ int sys_getopt_optopt;     /* character checked for validity */
+ int sys_getopt_optreset;   /* reset getopt */
+-char *sys_getopt_optarg;   /* argument associated with option */
++const char *sys_getopt_optarg;   /* argument associated with option */
+ 
+ /* Common state for all threads that did not have own getopt state. */
+ static struct sys_getopt_state m_getopt_common_state = {
+diff --git a/samples/basic/minimal/arm.conf b/samples/basic/minimal/arm.conf
+index b695c18ab28..cd83bbc177f 100644
+--- a/samples/basic/minimal/arm.conf
++++ b/samples/basic/minimal/arm.conf
+@@ -1 +1,3 @@
+ CONFIG_ARM_MPU=n
++CONFIG_UART_INTERRUPT_DRIVEN=n
++CONFIG_FPU=n
+diff --git a/samples/net/dhcpv4_client/overlay-e1000.conf b/samples/net/dhcpv4_client/overlay-e1000.conf
+index d2880bd3587..bb2333b7faf 100644
+--- a/samples/net/dhcpv4_client/overlay-e1000.conf
++++ b/samples/net/dhcpv4_client/overlay-e1000.conf
+@@ -1,6 +1,7 @@
+ CONFIG_NET_L2_ETHERNET=y
+-CONFIG_NET_QEMU_ETHERNET=y
++#CONFIG_NET_QEMU_ETHERNET=y
++CONFIG_NET_QEMU_USER=y
+ 
+-CONFIG_PCIE=y
++#CONFIG_PCIE=y
+ 
+ #CONFIG_ETHERNET_LOG_LEVEL_DBG=y
+diff --git a/samples/net/dhcpv4_client/prj.conf b/samples/net/dhcpv4_client/prj.conf
+index 0b93365f113..57f0496f9fd 100644
+--- a/samples/net/dhcpv4_client/prj.conf
++++ b/samples/net/dhcpv4_client/prj.conf
+@@ -1,3 +1,11 @@
++#CONFIG_NET_QEMU_USER=y
++#CONFIG_NET_QEMU_USER_EXTRA_ARGS="net=192.168.0.0/24,hostfwd=tcp::8080-:8080"
++#CONFIG_NET_L2_ETHERNET=y
++
++CONFIG_NET_RX_STACK_SIZE=8192
++CONFIG_NET_MGMT_EVENT_STACK_SIZE=4096
++CONFIG_SHELL_STACK_SIZE=4096
++
+ CONFIG_NETWORKING=y
+ CONFIG_NET_IPV6=n
+ CONFIG_NET_IPV4=y
+@@ -19,3 +27,7 @@ CONFIG_LOG=y
+ 
+ CONFIG_SLIP_STATISTICS=n
+ CONFIG_NET_SHELL=y
++
++CONFIG_POWEROFF=y
++
++#CONFIG_LTO=y
+diff --git a/samples/net/dhcpv4_client/src/main.c b/samples/net/dhcpv4_client/src/main.c
+index f307e3401e9..2b18bf5b229 100644
+--- a/samples/net/dhcpv4_client/src/main.c
++++ b/samples/net/dhcpv4_client/src/main.c
+@@ -14,6 +14,7 @@ LOG_MODULE_REGISTER(net_dhcpv4_client_sample, LOG_LEVEL_DBG);
+ #include <zephyr/linker/sections.h>
+ #include <errno.h>
+ #include <stdio.h>
++#include <zephyr/sys/poweroff.h>
+ 
+ #include <zephyr/net/net_if.h>
+ #include <zephyr/net/net_core.h>
+@@ -41,7 +42,7 @@ static void handler(struct net_mgmt_event_callback *cb,
+ 		    uint64_t mgmt_event,
+ 		    struct net_if *iface)
+ {
+-	int i = 0;
++	int i;
+ 
+ 	if (mgmt_event != NET_EVENT_IPV4_ADDR_ADD) {
+ 		return;
+@@ -49,20 +50,19 @@ static void handler(struct net_mgmt_event_callback *cb,
+ 
+ 	for (i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
+ 		char buf[NET_IPV4_ADDR_LEN];
++		struct net_if_addr_ipv4 *if_addr =
++                        &iface->config.ip.ipv4->unicast[i];
+ 
+-		if (iface->config.ip.ipv4->unicast[i].ipv4.addr_type !=
+-							NET_ADDR_DHCP) {
++		if (if_addr->ipv4.addr_type != NET_ADDR_DHCP || !if_addr->ipv4.is_used) {
+ 			continue;
+ 		}
+ 
+ 		LOG_INF("   Address[%d]: %s", net_if_get_by_iface(iface),
+-			net_addr_ntop(NET_AF_INET,
+-			    &iface->config.ip.ipv4->unicast[i].ipv4.address.in_addr,
++			net_addr_ntop(NET_AF_INET, &if_addr->ipv4.address.in_addr,
+ 						  buf, sizeof(buf)));
+ 		LOG_INF("    Subnet[%d]: %s", net_if_get_by_iface(iface),
+-			net_addr_ntop(NET_AF_INET,
+-				       &iface->config.ip.ipv4->unicast[i].netmask,
+-				       buf, sizeof(buf)));
++			net_addr_ntop(NET_AF_INET, &if_addr->netmask,
++				      buf, sizeof(buf)));
+ 		LOG_INF("    Router[%d]: %s", net_if_get_by_iface(iface),
+ 			net_addr_ntop(NET_AF_INET,
+ 						 &iface->config.ip.ipv4->gw,
+@@ -98,5 +98,11 @@ int main(void)
+ 	net_dhcpv4_add_option_callback(&dhcp_cb);
+ 
+ 	net_if_foreach(start_dhcpv4_client, NULL);
++
++#if	CONFIG_POWEROFF
++	k_sleep(K_SECONDS(12));
++	sys_poweroff();
++#endif
++
+ 	return 0;
+ }
+diff --git a/samples/net/sockets/echo_server/prj.conf b/samples/net/sockets/echo_server/prj.conf
+index d233af34065..f8874d96369 100644
+--- a/samples/net/sockets/echo_server/prj.conf
++++ b/samples/net/sockets/echo_server/prj.conf
+@@ -2,14 +2,18 @@
+ CONFIG_NETWORKING=y
+ CONFIG_NET_UDP=y
+ CONFIG_NET_TCP=y
+-CONFIG_NET_IPV6=y
++CONFIG_NET_IPV6=n
+ CONFIG_NET_IPV4=y
+ CONFIG_NET_SOCKETS=y
+ CONFIG_POSIX_API=y
+ CONFIG_NET_CONNECTION_MANAGER=y
++CONFIG_NET_MGMT_EVENT_MONITOR=y
+ 
+ # Kernel options
+ CONFIG_MAIN_STACK_SIZE=2048
++CONFIG_NET_MGMT_EVENT_STACK_SIZE=2048
++CONFIG_SHELL_STACK_SIZE=4096
++CONFIG_NET_CONNECTION_MANAGER_MONITOR_STACK_SIZE=2048
+ CONFIG_ENTROPY_GENERATOR=y
+ CONFIG_TEST_RANDOM_GENERATOR=y
+ CONFIG_INIT_STACKS=y
+@@ -26,10 +30,11 @@ CONFIG_NET_PKT_TX_COUNT=16
+ CONFIG_NET_BUF_RX_COUNT=64
+ CONFIG_NET_BUF_TX_COUNT=64
+ CONFIG_NET_CONTEXT_NET_PKT_POOL=y
++CONFIG_NET_DEBUG_NET_PKT_ALLOC=y
+ 
+ # IP address options
+-CONFIG_NET_IF_UNICAST_IPV6_ADDR_COUNT=3
+-CONFIG_NET_IF_MCAST_IPV6_ADDR_COUNT=4
++#CONFIG_NET_IF_UNICAST_IPV6_ADDR_COUNT=3
++#CONFIG_NET_IF_MCAST_IPV6_ADDR_COUNT=4
+ CONFIG_NET_MAX_CONTEXTS=10
+ 
+ # Network shell
+@@ -38,9 +43,9 @@ CONFIG_SHELL=y
+ 
+ # Network application options and configuration
+ CONFIG_NET_CONFIG_SETTINGS=y
+-CONFIG_NET_CONFIG_NEED_IPV6=y
+-CONFIG_NET_CONFIG_MY_IPV6_ADDR="2001:db8::1"
+-CONFIG_NET_CONFIG_PEER_IPV6_ADDR="2001:db8::2"
++#CONFIG_NET_CONFIG_NEED_IPV6=y
++#CONFIG_NET_CONFIG_MY_IPV6_ADDR="2001:db8::1"
++#CONFIG_NET_CONFIG_PEER_IPV6_ADDR="2001:db8::2"
+ CONFIG_NET_CONFIG_NEED_IPV4=y
+ CONFIG_NET_CONFIG_MY_IPV4_ADDR="192.0.2.1"
+ CONFIG_NET_CONFIG_PEER_IPV4_ADDR="192.0.2.2"
+@@ -49,5 +54,9 @@ CONFIG_NET_CONFIG_PEER_IPV4_ADDR="192.0.2.2"
+ # if there are more than 1 handlers defined.
+ CONFIG_ZVFS_OPEN_ADD_SIZE_NET_SAMPLE=8
+ 
+-# How many client can connect to echo-server simultaneously
+-CONFIG_NET_SAMPLE_NUM_HANDLERS=1
++# How many clients can connect to echo-server simultaneously
++CONFIG_NET_SAMPLE_NUM_HANDLERS=10
++
++CONFIG_NET_L2_ETHERNET=y
++#CONFIG_NET_QEMU_ETHERNET=y
++CONFIG_NET_QEMU_USER=y
+diff --git a/samples/synchronization/prj.conf b/samples/synchronization/prj.conf
+index f1a8e1201bd..58de021b4db 100644
+--- a/samples/synchronization/prj.conf
++++ b/samples/synchronization/prj.conf
+@@ -1,4 +1,32 @@
++CONFIG_ENTROPY_GENERATOR=y
++
+ CONFIG_STDOUT_CONSOLE=y
+ # enable to use thread names
+ CONFIG_THREAD_NAME=y
+ CONFIG_SCHED_CPU_MASK=y
++
++#CONFIG_MAIN_STACK_SIZE=2048
++#CONFIG_UART_PL011=y
++#CONFIG_UART_INTERRUPT_DRIVEN=n
++
++#CONFIG_NETWORKING=y
++#NET_QEMU_NETWORKING=y    # A53 ?
++#CONFIG_NET_IPV4=y
++#CONFIG_NET_IPV6=n
++#CONFIG_NET_TCP=y
++#CONFIG_NET_SOCKETS=y
++#CONFIG_NET_SOCKETS_POSIX_NAMES=y
++#CONFIG_POSIX_MAX_FDS=20
++#CONFIG_NET_DRIVERS=y
++#CONFIG_NET_LOOPBACK=y
++
++## Allow tapping into the number of transmitted packets
++#CONFIG_NET_MGMT=y
++#CONFIG_NET_STATISTICS=y
++#CONFIG_NET_STATISTICS_IPV4=y
++#CONFIG_NET_STATISTICS_USER_API=y
++
++#CONFIG_NET_PKT_RX_COUNT=16
++#CONFIG_NET_PKT_TX_COUNT=16
++#CONFIG_NET_BUF_RX_COUNT=64
++#CONFIG_NET_BUF_TX_COUNT=64
+diff --git a/subsys/fs/shell.c b/subsys/fs/shell.c
+index ebd33c2b721..0d3260b24f3 100644
+--- a/subsys/fs/shell.c
++++ b/subsys/fs/shell.c
+@@ -592,8 +592,8 @@ static int cmd_write(const struct shell *sh, size_t argc, char **argv)
+ }
+ 
+ #ifdef CONFIG_FILE_SYSTEM_SHELL_TEST_COMMANDS
+-const static uint8_t speed_types[][4] = {"B", "KiB", "MiB", "GiB"};
+-const static uint32_t speed_divisor = 1024;
++static const uint8_t speed_types[][4] = {"B", "KiB", "MiB", "GiB"};
++static const uint32_t speed_divisor = 1024;
+ 
+ static void file_size_output(const struct shell *sh, double size)
+ {
+diff --git a/subsys/logging/backends/log_backend_uart.c b/subsys/logging/backends/log_backend_uart.c
+index e0df1c5cfbe..cb611fd5316 100644
+--- a/subsys/logging/backends/log_backend_uart.c
++++ b/subsys/logging/backends/log_backend_uart.c
+@@ -123,14 +123,34 @@ cleanup:
+ 	return length;
+ }
+ 
++void console_out_string(const char *s);
++
+ static void process(const struct log_backend *const backend,
+ 		union log_msg_generic *msg)
+ {
++	if (!backend) {
++		console_out_string("process(): no backend\n");
++	}
++	if (!backend->cb) {
++		console_out_string("process(): no backend->cb\n");
++	}
+ 	const struct lbu_cb_ctx *ctx = backend->cb->ctx;
++	if (!ctx) {
++		console_out_string("process(): no ctx\n");
++	}
+ 	struct lbu_data *data = ctx->data;
++	if (!data) {
++		console_out_string("process(): no data\n");
++	}
+ 	uint32_t flags = log_backend_std_get_flags();
++	if (data->log_format_current > 3) {
++		console_out_string("process(): invalid data->log_format_current\n");
++	}
+ 	log_format_func_t log_output_func = log_format_func_t_get(data->log_format_current);
+ 
++	if (!msg) {
++		console_out_string("process(): no msg\n");
++	}
+ 	log_output_func(ctx->output, &msg->log, flags);
+ }
+ 
+diff --git a/subsys/logging/log_core.c b/subsys/logging/log_core.c
+index f0143480dc6..91c452378e6 100644
+--- a/subsys/logging/log_core.c
++++ b/subsys/logging/log_core.c
+@@ -150,8 +150,6 @@ COND_CODE_0(CONFIG_LOG_TAG_MAX_LEN, (),
+ static char tag[CONFIG_LOG_TAG_MAX_LEN + 1] =
+ 	COND_CODE_0(CONFIG_LOG_TAG_MAX_LEN, ({}), (CONFIG_LOG_TAG_DEFAULT));
+ 
+-static void msg_process(union log_msg_generic *msg);
+-
+ static log_timestamp_t dummy_timestamp(void)
+ {
+ 	return 0;
+@@ -321,6 +319,8 @@ static uint32_t activate_foreach_backend(uint32_t mask)
+ 	return mask;
+ }
+ 
++void console_out_string(const char *s);
++
+ static uint32_t z_log_init(bool blocking, bool can_sleep)
+ {
+ 	uint32_t mask = 0;
+@@ -344,6 +344,7 @@ static uint32_t z_log_init(bool blocking, bool can_sleep)
+ 	STRUCT_SECTION_FOREACH(log_backend, backend) {
+ 		/* Activate autostart backends */
+ 		if (backend->autostart) {
++			//console_out_string("log_backend_init() called for autostart\n");
+ 			log_backend_init(backend);
+ 
+ 			/* If backend has activation function then backend is
+@@ -543,6 +544,7 @@ void z_log_notify_backend_enabled(void)
+ 	if (IS_ENABLED(CONFIG_LOG_PROCESS_THREAD) && !backend_attached) {
+ 		k_sem_give(&log_process_thread_sem);
+ 	}
++	//console_out_string("z_log_notify_backend_enabled()\n");
+ 
+ 	backend_attached = true;
+ }
+@@ -562,6 +564,7 @@ bool z_impl_log_process(void)
+ 	union log_msg_generic *msg;
+ 
+ 	if (!backend_attached) {
++		console_out_string("z_impl_log_process: no backend\n");
+ 		return false;
+ 	}
+ 
+@@ -932,12 +935,14 @@ static void log_process_thread_timer_expiry_fn(struct k_timer *timer)
+ 	k_sem_give(&log_process_thread_sem);
+ }
+ 
++static uint32_t activate_mask;
++
+ static void log_process_thread_func(void *dummy1, void *dummy2, void *dummy3)
+ {
+ 	__ASSERT_NO_MSG(log_backend_count_get() > 0);
+ 	uint32_t links_active_mask = 0xFFFFFFFF;
+ 	uint8_t domain_offset = 0;
+-	uint32_t activate_mask = z_log_init(false, false);
++	activate_mask = z_log_init(false, false);
+ 	/* If some backends are not activated yet set periodical thread wake up
+ 	 * to poll backends for readiness. Period is set arbitrary.
+ 	 * If all backends are ready periodic wake up is not needed.
+@@ -985,6 +990,10 @@ struct k_thread logging_thread;
+ static int enable_logger(void)
+ {
+ 	if (IS_ENABLED(CONFIG_LOG_PROCESS_THREAD)) {
++		//activate_mask = z_log_init(false, false);
++		if (activate_mask) {
++			console_out_string("enable_logger(): activate_mask is set\n");
++		}
+ 		k_timer_init(&log_process_thread_timer,
+ 				log_process_thread_timer_expiry_fn, NULL);
+ 		/* start logging thread */
+diff --git a/subsys/net/ip/net_core.c b/subsys/net/ip/net_core.c
+index 058477ee37b..66b65335576 100644
+--- a/subsys/net/ip/net_core.c
++++ b/subsys/net/ip/net_core.c
+@@ -694,6 +694,9 @@ static inline int services_init(void)
+ 
+ static int net_init(void)
+ {
++	//printk("net_init()\n");
++	LOG_INF("net_init()");
++
+ 	net_hostname_init();
+ 
+ 	NET_DBG("Priority %d", CONFIG_NET_INIT_PRIO);
+diff --git a/subsys/net/ip/net_private.h b/subsys/net/ip/net_private.h
+index e26cac6f682..7f8b680a79b 100644
+--- a/subsys/net/ip/net_private.h
++++ b/subsys/net/ip/net_private.h
+@@ -299,7 +299,7 @@ int net_ipv6_send_fragmented_pkt(struct net_if *iface, struct net_pkt *pkt,
+ extern const char *net_verdict2str(enum net_verdict verdict);
+ extern const char *net_proto2str(int family, int proto);
+ extern char *net_byte_to_hex(char *ptr, uint8_t byte, char base, bool pad);
+-extern char *net_sprint_ll_addr_buf(const uint8_t *ll, uint8_t ll_len,
++extern const char *net_sprint_ll_addr_buf(const uint8_t *ll, uint8_t ll_len,
+ 				    char *buf, int buflen);
+ extern uint16_t calc_chksum(uint16_t sum_in, const uint8_t *data, size_t len);
+ extern uint16_t net_calc_chksum(struct net_pkt *pkt, uint8_t proto);
+@@ -374,7 +374,7 @@ static inline uint16_t net_calc_chksum_tcp(struct net_pkt *pkt)
+ 	return net_calc_chksum(pkt, NET_IPPROTO_TCP);
+ }
+ 
+-static inline char *net_sprint_ll_addr(const uint8_t *ll, uint8_t ll_len)
++static inline const char *net_sprint_ll_addr(const uint8_t *ll, uint8_t ll_len)
+ {
+ 	static char buf[sizeof("xx:xx:xx:xx:xx:xx:xx:xx")];
+ 
+diff --git a/subsys/net/ip/utils.c b/subsys/net/ip/utils.c
+index 6150d967972..32c0be086a9 100644
+--- a/subsys/net/ip/utils.c
++++ b/subsys/net/ip/utils.c
+@@ -93,7 +93,7 @@ char *net_byte_to_hex(char *ptr, uint8_t byte, char base, bool pad)
+ 	return ptr;
+ }
+ 
+-char *net_sprint_ll_addr_buf(const uint8_t *ll, uint8_t ll_len,
++const char *net_sprint_ll_addr_buf(const uint8_t *ll, uint8_t ll_len,
+ 			     char *buf, int buflen)
+ {
+ 	uint8_t i, len, blen;
+diff --git a/subsys/net/lib/config/init.c b/subsys/net/lib/config/init.c
+index 77af9e9fc9e..1951762c78b 100644
+--- a/subsys/net/lib/config/init.c
++++ b/subsys/net/lib/config/init.c
+@@ -57,6 +57,9 @@ static inline bool services_are_ready(int flags)
+ 
+ static void setup_dhcpv4(struct net_if *iface)
+ {
++	printk("setup_dhcpv4()\n");
++	LOG_INF("setup_dhcpv4()");
++
+ 	NET_INFO("Running dhcpv4 client...");
+ 
+ 	net_dhcpv4_start(iface);
+diff --git a/subsys/net/lib/dhcpv4/dhcpv4.c b/subsys/net/lib/dhcpv4/dhcpv4.c
+index 739c03d3708..f698f2609db 100644
+--- a/subsys/net/lib/dhcpv4/dhcpv4.c
++++ b/subsys/net/lib/dhcpv4/dhcpv4.c
+@@ -1945,6 +1945,8 @@ int net_dhcpv4_remove_option_vendor_callback(struct net_dhcpv4_option_callback *
+ 
+ void net_dhcpv4_start(struct net_if *iface)
+ {
++	printk("net_dhcpv4_start()\n");
++	//LOG_INF("net_dhcpv4_start()");
+ 	dhcpv4_start_internal(iface, true);
+ }
+ 
+@@ -2016,6 +2018,8 @@ int net_dhcpv4_init(void)
+ 	struct net_sockaddr local_addr;
+ 	int ret;
+ 
++	printk("net_dhcpv4_init()\n");
++	//LOG_INF("net_dhcpv4_init()");
+ 	NET_DBG("");
+ 
+ 	net_ipaddr_copy(&net_sin(&local_addr)->sin_addr,
+diff --git a/subsys/net/lib/shell/iface_dynamic.h b/subsys/net/lib/shell/iface_dynamic.h
+index 3789d14d2c1..1fb0a3775d9 100644
+--- a/subsys/net/lib/shell/iface_dynamic.h
++++ b/subsys/net/lib/shell/iface_dynamic.h
+@@ -19,7 +19,7 @@ static void iface_index_get(size_t idx, struct shell_static_entry *entry);
+ 
+ SHELL_DYNAMIC_CMD_CREATE(iface_index, iface_index_get);
+ 
+-static char *set_iface_index_buffer(size_t idx)
++static const char *set_iface_index_buffer(size_t idx)
+ {
+ 	struct net_if *iface = net_if_get_by_index(idx);
+ 	size_t array_idx;
+@@ -43,7 +43,7 @@ static char *set_iface_index_buffer(size_t idx)
+ 	return iface_index_buffer[array_idx];
+ }
+ 
+-static char *set_iface_index_help(size_t idx)
++static const char *set_iface_index_help(size_t idx)
+ {
+ 	struct net_if *iface = net_if_get_by_index(idx);
+ 	size_t array_idx;
+diff --git a/subsys/shell/backends/shell_uart.c b/subsys/shell/backends/shell_uart.c
+index ddaf1c818cb..6925b582152 100644
+--- a/subsys/shell/backends/shell_uart.c
++++ b/subsys/shell/backends/shell_uart.c
+@@ -466,18 +466,18 @@ static int async_read(struct shell_uart_async *sh_uart,
+ 	*cnt = sh_cnt;
+ 
+ 	if (sh_uart->pending_rx_req && buf_available) {
+-		uint8_t *buf = uart_async_rx_buf_req(async_rx);
++		uint8_t *buf2 = uart_async_rx_buf_req(async_rx);
+ 		size_t len = uart_async_rx_get_buf_len(async_rx);
+ 		int err;
+ 
+-		__ASSERT_NO_MSG(buf != NULL);
++		__ASSERT_NO_MSG(buf2 != NULL);
+ 		atomic_dec(&sh_uart->pending_rx_req);
+-		err = uart_rx_buf_rsp(sh_uart->common.dev, buf, len);
++		err = uart_rx_buf_rsp(sh_uart->common.dev, buf2, len);
+ 		/* If it is too late and RX is disabled then re-enable it. */
+ 		if (err < 0) {
+ 			if (err == -EACCES) {
+ 				sh_uart->pending_rx_req = 0;
+-				err = rx_enable(sh_uart->common.dev, buf, len);
++				err = rx_enable(sh_uart->common.dev, buf2, len);
+ 			} else {
+ 				return err;
+ 			}
+diff --git a/subsys/shell/shell_log_backend.c b/subsys/shell/shell_log_backend.c
+index 8f0d3214ce9..c16373d9b7a 100644
+--- a/subsys/shell/shell_log_backend.c
++++ b/subsys/shell/shell_log_backend.c
+@@ -229,11 +229,26 @@ static bool process_msg_from_buffer(const struct shell *sh)
+ 	return true;
+ }
+ 
++void console_out_string(const char *s);
++
+ static void process(const struct log_backend *const backend,
+ 		    union log_msg_generic *msg)
+ {
++	if (!backend) {
++		console_out_string("shell process(): no backend\n");
++	}
++	if (!backend->cb) {
++		console_out_string("shell process(): no backend->cb\n");
++	}
+ 	const struct shell *sh = (const struct shell *)backend->cb->ctx;
++	if (!sh) {
++		console_out_string("shell process(): no sh\n");
++		//return;
++	}
+ 	const struct shell_log_backend *log_backend = sh->log_backend;
++	if (!log_backend) {
++		console_out_string("shell process(): no log_backend\n");
++	}
+ 	struct mpsc_pbuf_buffer *mpsc_buffer = log_backend->mpsc_buffer;
+ 	const struct log_output *log_output = log_backend->log_output;
+ 	bool colors = IS_ENABLED(CONFIG_SHELL_VT100_COLORS) &&
