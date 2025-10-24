@@ -401,11 +401,11 @@ static int cmd_net_dns_list(const struct shell *sh, size_t argc, char *argv[])
 	return 0;
 }
 
-static int cmd_net_dns_browse(const struct shell *sh, size_t argc, char *argv[])
+static int cmd_net_dns_browse(const struct shell *sh, size_t argc, const char *argv[])
 {
 #if defined(CONFIG_DNS_RESOLVER)
 	struct dns_resolve_context *ctx;
-	char *query;
+	const char *query;
 	uint16_t dns_id;
 	int ret, count = 0;
 
