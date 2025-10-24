@@ -229,11 +229,26 @@ static bool process_msg_from_buffer(const struct shell *sh)
 	return true;
 }
 
+void console_out_string(const char *s);
+
 static void process(const struct log_backend *const backend,
 		    union log_msg_generic *msg)
 {
+	if (!backend) {
+		console_out_string("shell process(): no backend\n");
+	}
+	if (!backend->cb) {
+		console_out_string("shell process(): no backend->cb\n");
+	}
 	const struct shell *sh = (const struct shell *)backend->cb->ctx;
+	if (!sh) {
+		console_out_string("shell process(): no sh\n");
+		//return;
+	}
 	const struct shell_log_backend *log_backend = sh->log_backend;
+	if (!log_backend) {
+		console_out_string("shell process(): no log_backend\n");
+	}
 	struct mpsc_pbuf_buffer *mpsc_buffer = log_backend->mpsc_buffer;
 	const struct log_output *log_output = log_backend->log_output;
 	bool colors = IS_ENABLED(CONFIG_SHELL_VT100_COLORS) &&

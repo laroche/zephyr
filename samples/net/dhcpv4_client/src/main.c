@@ -14,6 +14,7 @@ LOG_MODULE_REGISTER(net_dhcpv4_client_sample, LOG_LEVEL_DBG);
 #include <zephyr/linker/sections.h>
 #include <errno.h>
 #include <stdio.h>
+#include <zephyr/sys/poweroff.h>
 
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/net_core.h>
@@ -41,7 +42,7 @@ static void handler(struct net_mgmt_event_callback *cb,
 		    uint64_t mgmt_event,
 		    struct net_if *iface)
 {
-	int i = 0;
+	int i;
 
 	if (mgmt_event != NET_EVENT_IPV4_ADDR_ADD) {
 		return;
@@ -49,20 +50,19 @@ static void handler(struct net_mgmt_event_callback *cb,
 
 	for (i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
 		char buf[NET_IPV4_ADDR_LEN];
+		struct net_if_addr_ipv4 *if_addr =
+                        &iface->config.ip.ipv4->unicast[i];
 
-		if (iface->config.ip.ipv4->unicast[i].ipv4.addr_type !=
-							NET_ADDR_DHCP) {
+		if (if_addr->ipv4.addr_type != NET_ADDR_DHCP || !if_addr->ipv4.is_used) {
 			continue;
 		}
 
 		LOG_INF("   Address[%d]: %s", net_if_get_by_iface(iface),
-			net_addr_ntop(NET_AF_INET,
-			    &iface->config.ip.ipv4->unicast[i].ipv4.address.in_addr,
+			net_addr_ntop(NET_AF_INET, &if_addr->ipv4.address.in_addr,
 						  buf, sizeof(buf)));
 		LOG_INF("    Subnet[%d]: %s", net_if_get_by_iface(iface),
-			net_addr_ntop(NET_AF_INET,
-				       &iface->config.ip.ipv4->unicast[i].netmask,
-				       buf, sizeof(buf)));
+			net_addr_ntop(NET_AF_INET, &if_addr->netmask,
+				      buf, sizeof(buf)));
 		LOG_INF("    Router[%d]: %s", net_if_get_by_iface(iface),
 			net_addr_ntop(NET_AF_INET,
 						 &iface->config.ip.ipv4->gw,
@@ -98,5 +98,11 @@ int main(void)
 	net_dhcpv4_add_option_callback(&dhcp_cb);
 
 	net_if_foreach(start_dhcpv4_client, NULL);
+
+#if	CONFIG_POWEROFF
+	k_sleep(K_SECONDS(12));
+	sys_poweroff();
+#endif
+
 	return 0;
 }

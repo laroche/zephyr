@@ -38,6 +38,33 @@ check_set_compiler_property(PROPERTY warning_base
     -Wall
     "SHELL:-Wformat -Wformat-security"
     "SHELL:-Wformat -Wno-format-zero-length"
+    -Wextra
+    -Wparentheses
+    -Wsequence-point
+    -Wshadow
+    -Wpointer-arith
+    #-Wswitch-default
+    #-Wcast-qual
+    #-Wcast-align
+    #-Wnested-externs
+    -Wunreachable-code
+    -Wuninitialized
+    #-Wmissing-prototypes
+    #-Wredundant-decls
+    -Wmissing-include-dirs
+    #-Wconversion
+    -Wlogical-not-parentheses
+    -Wwrite-strings
+    -Wold-style-definition
+    #-Waggregate-return
+    -Wlogical-op
+    -Wtrampolines
+    #-fanalyzer
+    #-Wno-discarded-qualifiers
+    -Wno-sign-compare
+    -Wno-type-limits
+    #-Wno-unused-but-set-variable
+    -Wno-unused-parameter
 )
 
 # C implicit promotion rules will want to make floats into doubles very easily
@@ -151,7 +178,7 @@ set_property(TARGET compiler-cpp PROPERTY dialect_cpp23 "-std=c++23"
   "-Wno-register" "-Wno-volatile")
 
 # Flag for disabling strict aliasing rule in C and C++
-set_compiler_property(PROPERTY no_strict_aliasing -fno-strict-aliasing)
+#set_compiler_property(PROPERTY no_strict_aliasing -fno-strict-aliasing)
 
 # Extra warning options
 set_property(TARGET compiler PROPERTY warnings_as_errors -Werror)
