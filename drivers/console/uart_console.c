@@ -594,6 +594,13 @@ static void uart_console_hook_install(void)
 #endif
 }
 
+void console_out_string(const char *s)
+{
+	for (; *s; s++) {
+		console_out(*s);
+		//z_impl_zephyr_fputc(*s, NULL);
+	}
+}
 /**
  * @brief Initialize one UART as the console/debug port
  *
@@ -606,6 +613,7 @@ static int uart_console_init(void)
 	}
 
 	uart_console_hook_install();
+	//console_out_string("Hallo from uart_console_init()\n");
 
 	return 0;
 }

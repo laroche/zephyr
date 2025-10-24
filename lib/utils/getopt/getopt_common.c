@@ -20,7 +20,7 @@ int sys_getopt_opterr = 1; /* if error message should be printed */
 int sys_getopt_optind = 1; /* index into parent argv vector */
 int sys_getopt_optopt;     /* character checked for validity */
 int sys_getopt_optreset;   /* reset getopt */
-char *sys_getopt_optarg;   /* argument associated with option */
+const char *sys_getopt_optarg;   /* argument associated with option */
 
 /* Common state for all threads that did not have own getopt state. */
 static struct sys_getopt_state m_getopt_common_state = {

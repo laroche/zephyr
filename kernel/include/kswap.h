@@ -201,15 +201,13 @@ static inline void z_sched_switch_spin(struct k_thread *thread)
 
 static inline int z_swap_irqlock(unsigned int key)
 {
-	int ret;
 	z_check_stack_sentinel();
 
 #ifdef CONFIG_SPIN_VALIDATE
 	z_assert_can_swap(key, NULL);
 #endif /* CONFIG_SPIN_VALIDATE */
 
-	ret = arch_swap(key);
-	return ret;
+	return arch_swap(key);
 }
 
 /* If !USE_SWITCH, then spinlocks are guaranteed degenerate as we

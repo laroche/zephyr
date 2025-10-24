@@ -194,7 +194,7 @@ static void send_ipi(unsigned int ipi, uint32_t cpu_bitmap)
 	 */
 	unsigned int num_cpus = arch_num_cpus();
 
-	for (int i = 0; i < num_cpus; i++) {
+	for (unsigned int i = 0; i < num_cpus; i++) {
 		if ((cpu_bitmap & BIT(i)) == 0) {
 			continue;
 		}

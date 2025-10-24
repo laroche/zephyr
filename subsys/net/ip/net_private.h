@@ -313,7 +313,7 @@ int net_ipv6_send_fragmented_pkt(struct net_if *iface, struct net_pkt *pkt,
 extern const char *net_verdict2str(enum net_verdict verdict);
 extern const char *net_proto2str(int family, int proto);
 extern char *net_byte_to_hex(char *ptr, uint8_t byte, char base, bool pad);
-extern char *net_sprint_ll_addr_buf(const uint8_t *ll, uint8_t ll_len,
+extern const char *net_sprint_ll_addr_buf(const uint8_t *ll, uint8_t ll_len,
 				    char *buf, int buflen);
 extern uint16_t calc_chksum(uint16_t sum_in, const uint8_t *data, size_t len);
 extern int net_calc_chksum(struct net_pkt *pkt, uint8_t proto, uint16_t *out_chksum);
@@ -398,7 +398,7 @@ static inline int net_calc_chksum_tcp(struct net_pkt *pkt, uint16_t *out_chksum)
 	return net_calc_chksum(pkt, NET_IPPROTO_TCP, out_chksum);
 }
 
-static inline char *net_sprint_ll_addr(const uint8_t *ll, uint8_t ll_len)
+static inline const char *net_sprint_ll_addr(const uint8_t *ll, uint8_t ll_len)
 {
 	static char buf[sizeof("xx:xx:xx:xx:xx:xx:xx:xx")];
 

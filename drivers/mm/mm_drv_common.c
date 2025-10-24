@@ -569,7 +569,7 @@ __weak FUNC_ALIAS(sys_mm_drv_simple_update_region_flags,
 
 const struct sys_mm_drv_region *sys_mm_drv_simple_query_memory_regions(void)
 {
-	const static struct sys_mm_drv_region empty[] = {
+	static const struct sys_mm_drv_region empty[] = {
 		{ }
 	};
 
