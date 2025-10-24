@@ -123,14 +123,34 @@ cleanup:
 	return length;
 }
 
+void console_out_string(const char *s);
+
 static void process(const struct log_backend *const backend,
 		union log_msg_generic *msg)
 {
+	if (!backend) {
+		console_out_string("process(): no backend\n");
+	}
+	if (!backend->cb) {
+		console_out_string("process(): no backend->cb\n");
+	}
 	const struct lbu_cb_ctx *ctx = backend->cb->ctx;
+	if (!ctx) {
+		console_out_string("process(): no ctx\n");
+	}
 	struct lbu_data *data = ctx->data;
+	if (!data) {
+		console_out_string("process(): no data\n");
+	}
 	uint32_t flags = log_backend_std_get_flags();
+	if (data->log_format_current > 3) {
+		console_out_string("process(): invalid data->log_format_current\n");
+	}
 	log_format_func_t log_output_func = log_format_func_t_get(data->log_format_current);
 
+	if (!msg) {
+		console_out_string("process(): no msg\n");
+	}
 	log_output_func(ctx->output, &msg->log, flags);
 }
 

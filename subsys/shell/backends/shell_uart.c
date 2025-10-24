@@ -466,18 +466,18 @@ static int async_read(struct shell_uart_async *sh_uart,
 	*cnt = sh_cnt;
 
 	if (sh_uart->pending_rx_req && buf_available) {
-		uint8_t *buf = uart_async_rx_buf_req(async_rx);
+		uint8_t *buf2 = uart_async_rx_buf_req(async_rx);
 		size_t len = uart_async_rx_get_buf_len(async_rx);
 		int err;
 
-		__ASSERT_NO_MSG(buf != NULL);
+		__ASSERT_NO_MSG(buf2 != NULL);
 		atomic_dec(&sh_uart->pending_rx_req);
-		err = uart_rx_buf_rsp(sh_uart->common.dev, buf, len);
+		err = uart_rx_buf_rsp(sh_uart->common.dev, buf2, len);
 		/* If it is too late and RX is disabled then re-enable it. */
 		if (err < 0) {
 			if (err == -EACCES) {
 				sh_uart->pending_rx_req = 0;
-				err = rx_enable(sh_uart->common.dev, buf, len);
+				err = rx_enable(sh_uart->common.dev, buf2, len);
 			} else {
 				return err;
 			}

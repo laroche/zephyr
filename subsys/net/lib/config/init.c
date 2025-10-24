@@ -57,6 +57,9 @@ static inline bool services_are_ready(int flags)
 
 static void setup_dhcpv4(struct net_if *iface)
 {
+	printk("setup_dhcpv4()\n");
+	LOG_INF("setup_dhcpv4()");
+
 	NET_INFO("Running dhcpv4 client...");
 
 	net_dhcpv4_start(iface);

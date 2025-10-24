@@ -16,7 +16,7 @@ toolchain:
   - gnuarmemb
 supported:
   - net
-  - netif:eth
+  - netif:zeth
 ram: 524288
 flash: 262144
 testing:

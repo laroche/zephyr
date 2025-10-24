@@ -815,7 +815,7 @@ static inline void invalidate_tlb_page(uintptr_t virt)
 /* zephyr execution regions with appropriate attributes */
 
 struct arm_mmu_flat_range {
-	char *name;
+	const char *name;
 	void *start;
 	void *end;
 	uint32_t attrs;
@@ -998,11 +998,11 @@ void z_arm64_mm_init(bool is_primary_core)
 	__ASSERT(GET_EL(read_currentel()) == MODE_EL1,
 		 "Exception level not EL1, MMU not enabled!\n");
 
-	/* Ensure that MMU is already not enabled */
+	/* Ensure that MMU is not already enabled */
 	__ASSERT((read_sctlr_el1() & SCTLR_M_BIT) == 0, "MMU is already enabled\n");
 
 	/*
-	 * Only booting core setup up the page tables.
+	 * Only booting core setting up the page tables.
 	 */
 	if (is_primary_core) {
 		kernel_ptables.base_xlat_table = new_table();
@@ -1148,7 +1148,7 @@ size_t arch_virt_region_align(uintptr_t phys, size_t size)
 {
 	size_t alignment = CONFIG_MMU_PAGE_SIZE;
 	size_t level_size;
-	int level;
+	unsigned int level;
 
 	for (level = XLAT_LAST_LEVEL; level >= BASE_XLAT_LEVEL; level--) {
 		level_size = 1 << LEVEL_TO_VA_SIZE_SHIFT(level);

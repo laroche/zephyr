@@ -67,7 +67,7 @@ SECTION_SUBSEC_FUNC(TEXT, _reset_section, __start)
     ldr r0, =HACTLR_INIT
     mcr p15, 4, r0, c1, c0, 1
 
-   /* Go to SVC mode */
+    /* Go to SVC mode */
     mrs r0, cpsr
     bic r0, #MODE_MASK
     orr r0, #MODE_SVC
