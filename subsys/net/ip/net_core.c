@@ -696,6 +696,9 @@ static inline int services_init(void)
 
 static int net_init(void)
 {
+	//printk("net_init()\n");
+	LOG_INF("net_init()");
+
 	net_hostname_init();
 
 	NET_DBG("Priority %d", CONFIG_NET_INIT_PRIO);

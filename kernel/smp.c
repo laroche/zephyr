@@ -229,7 +229,7 @@ void z_smp_init(void)
 	/* Just start CPUs one by one. */
 	unsigned int num_cpus = arch_num_cpus();
 
-	for (int i = 1; i < num_cpus; i++) {
+	for (unsigned int i = 1; i < num_cpus; i++) {
 		z_init_cpu(i);
 		start_cpu(i, NULL);
 	}

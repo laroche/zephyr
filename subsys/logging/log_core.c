@@ -150,8 +150,6 @@ COND_CODE_0(CONFIG_LOG_TAG_MAX_LEN, (),
 static char tag[CONFIG_LOG_TAG_MAX_LEN + 1] =
 	COND_CODE_0(CONFIG_LOG_TAG_MAX_LEN, ({}), (CONFIG_LOG_TAG_DEFAULT));
 
-static void msg_process(union log_msg_generic *msg);
-
 static log_timestamp_t dummy_timestamp(void)
 {
 	return 0;
@@ -321,6 +319,8 @@ static uint32_t activate_foreach_backend(uint32_t mask)
 	return mask;
 }
 
+void console_out_string(const char *s);
+
 static uint32_t z_log_init(bool blocking, bool can_sleep)
 {
 	uint32_t mask = 0;
@@ -344,6 +344,7 @@ static uint32_t z_log_init(bool blocking, bool can_sleep)
 	STRUCT_SECTION_FOREACH(log_backend, backend) {
 		/* Activate autostart backends */
 		if (backend->autostart) {
+			//console_out_string("log_backend_init() called for autostart\n");
 			log_backend_init(backend);
 
 			/* If backend has activation function then backend is
@@ -543,6 +544,7 @@ void z_log_notify_backend_enabled(void)
 	if (IS_ENABLED(CONFIG_LOG_PROCESS_THREAD) && !backend_attached) {
 		k_sem_give(&log_process_thread_sem);
 	}
+	//console_out_string("z_log_notify_backend_enabled()\n");
 
 	backend_attached = true;
 }
@@ -562,6 +564,7 @@ bool z_impl_log_process(void)
 	union log_msg_generic *msg;
 
 	if (!backend_attached) {
+		console_out_string("z_impl_log_process: no backend\n");
 		return false;
 	}
 
@@ -932,12 +935,14 @@ static void log_process_thread_timer_expiry_fn(struct k_timer *timer)
 	k_sem_give(&log_process_thread_sem);
 }
 
+static uint32_t activate_mask;
+
 static void log_process_thread_func(void *dummy1, void *dummy2, void *dummy3)
 {
 	__ASSERT_NO_MSG(log_backend_count_get() > 0);
 	uint32_t links_active_mask = 0xFFFFFFFF;
 	uint8_t domain_offset = 0;
-	uint32_t activate_mask = z_log_init(false, false);
+	activate_mask = z_log_init(false, false);
 	/* If some backends are not activated yet set periodical thread wake up
 	 * to poll backends for readiness. Period is set arbitrary.
 	 * If all backends are ready periodic wake up is not needed.
@@ -985,6 +990,10 @@ struct k_thread logging_thread;
 static int enable_logger(void)
 {
 	if (IS_ENABLED(CONFIG_LOG_PROCESS_THREAD)) {
+		//activate_mask = z_log_init(false, false);
+		if (activate_mask) {
+			console_out_string("enable_logger(): activate_mask is set\n");
+		}
 		k_timer_init(&log_process_thread_timer,
 				log_process_thread_timer_expiry_fn, NULL);
 		/* start logging thread */

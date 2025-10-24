@@ -30,7 +30,7 @@ extern void z_arm64_sve_restore(struct z_arm64_fp_context *saved_fp_context);
 
 #include <string.h>
 
-static char *dbg_prefix(char *buf, char *msg, struct k_thread *th)
+static char *dbg_prefix(char *buf, const char *msg, struct k_thread *th)
 {
 	strcpy(buf, "CPU# exc# ");
 	buf[3] = '0' + _current_cpu->id;
@@ -45,7 +45,7 @@ static char *dbg_prefix(char *buf, char *msg, struct k_thread *th)
 	return buf + strlen(buf);
 }
 
-static void DBG(char *msg, struct k_thread *th)
+static void DBG(const char *msg, struct k_thread *th)
 {
 	char buf[80], *p;
 	unsigned int v;
@@ -65,7 +65,7 @@ static void DBG(char *msg, struct k_thread *th)
 	k_str_out(buf, p - buf);
 }
 
-static void DBG_PC(char *msg, uintptr_t pc)
+static void DBG_PC(const char *msg, uintptr_t pc)
 {
 	char buf[80], *p;
 	uintptr_t addr = pc;
@@ -88,8 +88,8 @@ static void DBG_PC(char *msg, uintptr_t pc)
 
 #else
 
-static inline void DBG(char *msg, struct k_thread *t) { }
-static inline void DBG_PC(char *msg, uintptr_t pc) { }
+static inline void DBG(const char *msg, struct k_thread *t) { }
+static inline void DBG_PC(const char *msg, uintptr_t pc) { }
 
 #endif /* FPU_DEBUG */
 
@@ -180,7 +180,7 @@ static void flush_owned_fpu(struct k_thread *thread)
 {
 	__ASSERT(read_daif() & DAIF_IRQ_BIT, "must be called with IRQs disabled");
 
-	int i;
+	unsigned int i;
 
 	/* search all CPUs for the owner we want */
 	unsigned int num_cpus = arch_num_cpus();

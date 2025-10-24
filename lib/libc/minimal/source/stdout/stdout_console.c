@@ -46,9 +46,7 @@ int fputc(int c, FILE *stream)
 int fputs(const char *ZRESTRICT s, FILE *ZRESTRICT stream)
 {
 	int len = strlen(s);
-	int ret;
-
-	ret = fwrite(s, 1, len, stream);
+	int ret = fwrite(s, 1, len, stream);
 
 	return (len == ret) ? 0 : EOF;
 }
@@ -100,7 +98,6 @@ static inline size_t z_vrfy_zephyr_fwrite(const void *ZRESTRICT ptr,
 					  size_t size, size_t nitems,
 					  FILE *ZRESTRICT stream)
 {
-
 	K_OOPS(K_SYSCALL_MEMORY_ARRAY_READ(ptr, nitems, size));
 	return z_impl_zephyr_fwrite(ptr, size, nitems, stream);
 }

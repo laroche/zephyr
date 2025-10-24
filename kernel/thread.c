@@ -473,10 +473,9 @@ static char *setup_thread_stack(struct k_thread *new_thread,
 	delta += arch_tls_stack_setup(new_thread, stack_ptr);
 #endif /* CONFIG_THREAD_LOCAL_STORAGE */
 #ifdef CONFIG_THREAD_USERSPACE_LOCAL_DATA
-	size_t tls_size = sizeof(struct _thread_userspace_local_data);
-
 	/* reserve space on highest memory of stack buffer for local data */
-	delta += tls_size;
+	delta += sizeof(struct _thread_userspace_local_data);
+
 	new_thread->userspace_local_data =
 		(struct _thread_userspace_local_data *)(stack_ptr - delta);
 #endif /* CONFIG_THREAD_USERSPACE_LOCAL_DATA */

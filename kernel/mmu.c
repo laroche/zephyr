@@ -114,7 +114,7 @@ void k_mem_page_frames_dump(void)
 	printk("Physical memory from 0x%lx to 0x%lx\n",
 	       K_MEM_PHYS_RAM_START, K_MEM_PHYS_RAM_END);
 
-	for (int i = 0; i < K_MEM_NUM_PAGE_FRAMES; i++) {
+	for (unsigned int i = 0; i < K_MEM_NUM_PAGE_FRAMES; i++) {
 		struct k_mem_page_frame *pf = &k_mem_page_frames[i];
 
 		page_frame_dump(pf);
