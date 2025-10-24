@@ -14,6 +14,7 @@ LOG_MODULE_REGISTER(net_dhcpv4_client_sample, LOG_LEVEL_DBG);
 #include <zephyr/linker/sections.h>
 #include <errno.h>
 #include <stdio.h>
+#include <zephyr/sys/poweroff.h>
 
 #include <zephyr/net/net_if.h>
 #include <zephyr/net/net_core.h>
@@ -50,6 +51,8 @@ static void handler(struct net_mgmt_event_callback *cb,
 
 	for (i = 0; i < NET_IF_MAX_IPV4_ADDR; i++) {
 		char buf[NET_IPV4_ADDR_LEN];
+		struct net_if_addr_ipv4 *if_addr =
+                        &iface->config.ip.ipv4->unicast[i];
 
 		if (cfg->ip.ipv4->unicast[i].ipv4.addr_type !=
 							NET_ADDR_DHCP) {
@@ -99,5 +102,11 @@ int main(void)
 	net_dhcpv4_add_option_callback(&dhcp_cb);
 
 	net_if_foreach(start_dhcpv4_client, NULL);
+
+#if	CONFIG_POWEROFF
+	k_sleep(K_SECONDS(12));
+	sys_poweroff();
+#endif
+
 	return 0;
 }

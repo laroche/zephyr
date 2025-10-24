@@ -152,7 +152,7 @@ static int _find_fd_entry(void)
 {
 	int fd;
 
-	for (fd = 0; fd < ARRAY_SIZE(fdtable); fd++) {
+	for (fd = 0; fd < (int) ARRAY_SIZE(fdtable); fd++) {
 		if (!atomic_get(&fdtable[fd].refcount)) {
 			return fd;
 		}
@@ -164,7 +164,7 @@ static int _find_fd_entry(void)
 
 static int _check_fd(int fd)
 {
-	if ((fd < 0) || (fd >= ARRAY_SIZE(fdtable))) {
+	if ((fd < 0) || (fd >= (int) ARRAY_SIZE(fdtable))) {
 		errno = EBADF;
 		return -1;
 	}
@@ -201,7 +201,7 @@ static int z_get_fd_by_obj_and_vtable(void *obj, const struct fd_op_vtable *vtab
 {
 	int fd;
 
-	for (fd = 0; fd < ARRAY_SIZE(fdtable); fd++) {
+	for (fd = 0; fd < (int) ARRAY_SIZE(fdtable); fd++) {
 		if (fdtable[fd].obj == obj && fdtable[fd].vtable == vtable) {
 			return fd;
 		}

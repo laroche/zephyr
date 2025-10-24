@@ -39,7 +39,7 @@ static void esf_dump(const struct arch_esf *esf)
 	EXCEPTION_DUMP("No EXC_RETURN available; assuming extended FP stack frame");
 #endif
 	if (extended_frame) {
-		for (int i = 0; i < ARRAY_SIZE(esf->fpu.s); i += 4) {
+		for (int i = 0; i < (int) ARRAY_SIZE(esf->fpu.s); i += 4) {
 			EXCEPTION_DUMP("s[%2d]:  0x%08x  s[%2d]:  0x%08x"
 				       "  s[%2d]:  0x%08x  s[%2d]:  0x%08x",
 				       i, (uint32_t)esf->fpu.s[i],
@@ -48,7 +48,7 @@ static void esf_dump(const struct arch_esf *esf)
 				       i + 3, (uint32_t)esf->fpu.s[i + 3]);
 		}
 #ifdef CONFIG_VFP_FEATURE_REGS_S64_D32
-		for (int i = 0; i < ARRAY_SIZE(esf->fpu.d); i += 4) {
+		for (int i = 0; i < (int) ARRAY_SIZE(esf->fpu.d); i += 4) {
 			EXCEPTION_DUMP("d[%2d]:  0x%16llx  d[%2d]:  0x%16llx"
 				       "  d[%2d]:  0x%16llx  d[%2d]:  0x%16llx",
 				       i, (uint64_t)esf->fpu.d[i],

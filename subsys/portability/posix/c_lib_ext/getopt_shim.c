@@ -8,7 +8,7 @@
 
 #include "getopt.h"
 
-char *optarg;
+const char *optarg;
 int opterr, optind, optopt;
 
 void getopt_init(void)

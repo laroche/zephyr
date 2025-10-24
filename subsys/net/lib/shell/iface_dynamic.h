@@ -22,7 +22,7 @@ static void iface_index_get(size_t idx, struct shell_static_entry *entry);
 
 SHELL_DYNAMIC_CMD_CREATE(iface_index, iface_index_get);
 
-static char *set_iface_index_buffer(size_t idx)
+static const char *set_iface_index_buffer(size_t idx)
 {
 	struct net_if *iface = net_if_get_by_index(idx);
 	size_t array_idx;
@@ -46,7 +46,7 @@ static char *set_iface_index_buffer(size_t idx)
 	return iface_index_buffer[array_idx];
 }
 
-static char *set_iface_index_help(size_t idx)
+static const char *set_iface_index_help(size_t idx)
 {
 	struct net_if *iface = net_if_get_by_index(idx);
 	size_t array_idx;
