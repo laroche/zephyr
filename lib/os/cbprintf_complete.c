@@ -665,7 +665,7 @@ static inline const char *extract_conversion(struct conversion *conv,
 	return sp;
 }
 
-#ifdef CONFIG_64BIT
+#if 1 || defined CONFIG_64BIT
 
 static void _ldiv5(uint64_t *v)
 {
@@ -1658,7 +1658,7 @@ int z_cbvprintf_impl(cbprintf_cb __out, void *ctx, const char *fp,
 			if (CHAR_IS_SIGNED) {
 				buf[0] = value->sint;
 			} else {
-				buf[0] = value->uint;
+				buf[0] = (char) value->uint;
 			}
 			bpe = buf + 1;
 			break;

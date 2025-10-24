@@ -18,9 +18,9 @@ struct sys_getopt_state {
 	int optind;   /* index into parent argv vector */
 	int optopt;   /* character checked for validity */
 	int optreset; /* reset getopt */
-	char *optarg; /* argument associated with option */
+	const char *optarg; /* argument associated with option */
 
-	char *place; /* option letter processing */
+	const char *place; /* option letter processing */
 
 #if CONFIG_GETOPT_LONG
 	int nonopt_start;
@@ -29,7 +29,7 @@ struct sys_getopt_state {
 };
 
 extern int sys_getopt_optreset; /* reset getopt */
-extern char *sys_getopt_optarg;
+extern const char *sys_getopt_optarg;
 extern int sys_getopt_opterr;
 extern int sys_getopt_optind;
 extern int sys_getopt_optopt;

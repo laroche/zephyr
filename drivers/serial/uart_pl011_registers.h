@@ -27,7 +27,7 @@ struct pl011_regs {
 	uint32_t ibrd;
 	uint32_t fbrd;
 	uint32_t lcr_h;
-	uint32_t cr;
+	volatile uint32_t cr;
 	uint32_t ifls;
 	uint32_t imsc;
 	uint32_t ris;
@@ -37,9 +37,9 @@ struct pl011_regs {
 };
 
 static inline
-volatile struct pl011_regs *get_uart(const struct device *dev)
+struct pl011_regs *get_uart(const struct device *dev)
 {
-	return (volatile struct pl011_regs *)DEVICE_MMIO_GET(dev);
+	return (struct pl011_regs *)DEVICE_MMIO_GET(dev);
 }
 
 #define PL011_BIT_MASK(x, y) (((2 << x) - 1) << y)
