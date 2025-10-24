@@ -62,7 +62,7 @@ extern struct x86_memmap_entry x86_memmap[];
  */
 
 struct x86_memmap_exclusion {
-	char *name;
+	const char *name;
 	void *start;		/* address of first byte of exclusion */
 	void *end;		/* one byte past end of exclusion */
 };
