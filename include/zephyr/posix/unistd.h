@@ -51,7 +51,7 @@ int gethostname(char *buf, size_t len);
 
 #ifdef CONFIG_POSIX_C_LIB_EXT
 int getopt(int argc, char *const argv[], const char *optstring);
-extern char *optarg;
+extern const char *optarg;
 extern int opterr, optind, optopt;
 #endif
 

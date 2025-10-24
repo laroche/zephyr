@@ -251,7 +251,7 @@ void z_smp_init(void)
 	 */
 	unsigned int num_cpus = arch_num_cpus();
 
-	for (int i = 1; i < num_cpus; i++) {
+	for (unsigned int i = 1; i < num_cpus; i++) {
 		if (CPU_START_DEFERRED(i)) {
 			continue;
 		}

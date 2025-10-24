@@ -103,9 +103,7 @@ static struct entropy_nrf5_dev_data entropy_nrf5_data;
 static int random_byte_get(void)
 {
 	int retval = -EAGAIN;
-	unsigned int key;
-
-	key = irq_lock();
+	unsigned int key = irq_lock();
 
 	if (nrf_rng_event_check(NRF_RNG, NRF_RNG_EVENT_VALRDY)) {
 		retval = nrf_rng_random_value_get(NRF_RNG);
